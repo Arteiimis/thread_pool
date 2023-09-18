@@ -3,6 +3,7 @@
     "files.associations": {
         "condition_variable": "cpp",
         "type_traits": "cpp",
-        "future": "cpp"
+        "future": "cpp",
+        "iostream": "cpp"
     }
 }
