@@ -1,0 +1,8 @@
+{
+    "C_Cpp.default.compilerPath": "/usr/local/bin/gcc",
+    "files.associations": {
+        "condition_variable": "cpp",
+        "type_traits": "cpp",
+        "future": "cpp"
+    }
+}
