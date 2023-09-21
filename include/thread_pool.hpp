@@ -9,66 +9,87 @@
 #include <condition_variable>
 #include <mutex>
 #include <type_traits>
-#include "task_queue.hpp"
+#include <future>
+#include <queue>
+#include <vector>
 
-template <typename T>
 class threadPool
 {
 public:
-    using task_type = std::function<void()>; // task is a function that returns void and takes no arguments
+    using task_type = std::function<void()>;
+    threadPool(size_t);
+    template<class F, class... Args>
+    auto enqueue(F&& f, Args&&... args)
+        -> std::future<typename std::result_of<F(Args...)>::type>;
+    ~threadPool();
 
 private:
-    taskQueue<task_type> tasks;
-    std::vector<std::thread> threads;
-
+    std::vector<std::thread> workers;
+    std::queue<task_type> tasks;
     std::condition_variable cv;
+    std::mutex mutex;
     bool stop;
-    size_t tasks_num;           // number of tasks that one thread can execute
-
-public:
-    threadPool(size_t thread_num, size_t tasks_num)
-        : stop(false), tasks_num(tasks_num)
-    {
-        for (size_t i = 0; i < thread_num; ++i)
-        {
-            threads.emplace_back([this] {
-                while (true)
-                {
-                    task_type task;
-                    {
-                        // wait for a task
-                        std::unique_lock<std::mutex> lock(tasks.getMutex());
-                        cv.wait(lock, [this] { return stop || !tasks.empty(); });
-                        if (stop && tasks.empty())
-                            return;
-                        task = std::move(tasks.deqeue());
-                    }
-                    task(); // execute task
-                }
-            });
-        }
-    }
-
-    template <class F, class... Args>
-    auto enqueue(F&& func, Args&&... args)
-        -> std::future<typename std::result_of<F(Args...)>::type>
-    {
-        using return_type = std::future<typename std::result_of<F(Args...)>::type>;
-
-        auto task = std::make_shared<std::packaged_task<return_type()>>(
-            std::bind(std::forward<F>(func), std::forward<Args>(args)...)
-        );
-
-        std::future<return_type> res = task->get_future();
-        {
-            std::unique_lock<std::mutex> lock(tasks.getMutex());
-            if (tasks.size() >= tasks_num)
-                throw std::runtime_error("too many tasks");
-            if (stop)
-                throw std::runtime_error("enqueue on stopped thread pool");
-            tasks.enqueue([task]() { (*task)(); });
-        }
-    }
 };
+
+inline threadPool::threadPool(size_t threads)
+    : stop(false)
+{
+    for (size_t i = 0; i < threads; i++)
+    {
+        workers.emplace_back([this] {
+            for (;;)
+            {
+                task_type task;
+                {
+                    std::unique_lock<std::mutex> lock(this->mutex);
+                    this->cv.wait(lock,
+                        [this] { return this->stop || !this->tasks.empty(); });
+                    if (this->stop && this->tasks.empty())
+                        return;
+                    task = std::move(this->tasks.front());
+                    this->tasks.pop();
+                }
+                task();
+            }
+        });
+    }
+}
+
+template<class F, class... Args>
+auto threadPool::enqueue(F&& func, Args&&... args)
+->std::future<typename std::result_of<F(Args...)> ::type>
+{
+    using return_type = typename std::result_of<F(Args...)>::type;
+
+    // 将函数和参数绑定，构造一个packaged_task, 并将其future返回
+    auto task = std::make_shared<std::packaged_task<return_type()> >(
+        std::bind(std::forward<F>(func), std::forward<Args>(args)...)
+    );
+
+    std::future<return_type> res = task->get_future();
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+
+        // 禁止在线程池停止后添加新的任务
+        if (stop)
+            throw std::runtime_error("enqueue on stopped thread pool");
+
+        // 此时task是一个shared_ptr，所以需要用*task()来调用
+        tasks.emplace([task]() { (*task)(); });
+    }
+    cv.notify_one();
+    return res;
+};
+
+inline threadPool::~threadPool()
+{
+    {
+        std::unique_lock<std::mutex> lock(mutex);
+        stop = true;
+    }
+    cv.notify_all();
+    for (std::thread& worker : workers)
+        worker.join();
+}
 
 #endif
