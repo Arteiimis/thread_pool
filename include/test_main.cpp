@@ -39,21 +39,6 @@ generator<int> fib(int n)
     }
 }
 
-// Lazy<int> fib(int n)
-// {
-//     int a = 1, b = 1;
-//     co_yield a;
-//     co_yield b;
-
-//     while (true)
-//     {
-//         int c = a + b;
-//         co_yield c;
-//         a = b;
-//         b = c;
-//     }
-// }
-
 int main()
 {
     using std::views::take;

@@ -28,11 +28,10 @@ private:
     std::queue<task_type> tasks;
     std::condition_variable cv;
     std::mutex mutex;
-    bool stop;
+    bool stop{ false };
 };
 
 inline threadPool::threadPool(size_t threads)
-    : stop(false)
 {
     for (size_t i = 0; i < threads; i++)
     {
