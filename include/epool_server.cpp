@@ -39,7 +39,7 @@ int epollServer::epoll_listen()
                 add_business([this] { accept_conn(epoll_fd, sockfd); });
             }
             else {
-                add_business([this, ready_num, events] { respon(epoll_fd, events[ready_num].data.fd); });
+                add_business([this, ready_num, events] { respon_conn(epoll_fd, events[ready_num].data.fd); });
             }
             printf("producer thread TID [0x%x] add a business\n", std::this_thread::get_id());
         }
@@ -109,6 +109,4 @@ void epollServer::respon_conn(int epollf_fd, int sockfd)
 }
 
 epollServer::~epollServer()
-{
-    stop();
-}
+{ stop(); }
