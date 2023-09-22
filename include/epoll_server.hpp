@@ -43,8 +43,8 @@ public:
     void set_max_thread_num(int max_thread_num);
     void set_min_thread_num(int min_thread_num);
 
-    void accept(int epoll_fd, int sockfd);
-    void respon(int epoll_fd, int sockfd);
+    void accept_conn(int epoll_fd, int sockfd);
+    void respon_conn(int epoll_fd, int sockfd);
 
     int epoll_listen();
     int socket_init();
