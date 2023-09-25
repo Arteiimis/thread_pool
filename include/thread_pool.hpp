@@ -23,21 +23,29 @@ public:
         -> std::future<typename std::result_of<F(Args...)>::type>;
     ~threadPool();
 
+    int enpand();
+
 private:
     std::vector<std::thread> workers;
     std::queue<task_type> tasks;
     std::condition_variable cv;
     std::mutex mutex;
     bool stop{ false };
+
+private:
+    int alive_thread_num;           // 线程池中的存活线程数
+    int busy_thread_num;            // 正在忙碌的线程数
+    int max_thread_num;             // 线程池中的最大线程数
+    int min_thread_num;             // 线程池中的最小线程数
+
+    const int expand_num = 2;       // 扩容的线程数
 };
 
 inline threadPool::threadPool(size_t threads)
 {
-    for (size_t i = 0; i < threads; i++)
-    {
+    for (size_t i = 0; i < threads; i++) {
         workers.emplace_back([this] {
-            for (;;)
-            {
+            for (;;) {
                 task_type task;
                 {
                     std::unique_lock<std::mutex> lock(this->mutex);
@@ -74,7 +82,7 @@ auto threadPool::enqueue(F&& func, Args&&... args)
             throw std::runtime_error("enqueue on stopped thread pool");
 
         // 此时task是一个shared_ptr，所以需要用*task()来调用
-        tasks.emplace([task]() { (*task)(); });
+        tasks.emplace([task] () { (*task)(); });
     }
     cv.notify_one();
     return res;

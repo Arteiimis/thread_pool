@@ -12,18 +12,20 @@
 
 epollServer::epollServer(int thread_num, int max_thread_num, int queue_max_size)
     : pool(thread_num), is_stop(false),
-    sockfd(socket_init()), epoll_fd(epoll_create(1)),
+    sockfd(socket_init()), epoll_fd(epoll_init(sockfd)),
     thread_num(thread_num), max_thread_num(max_thread_num), min_thread_num(thread_num),
     alive_thread_num(0), busy_thread_num(0), main_thread_id(std::this_thread::get_id())
 {
     business_queue = std::queue<business_type>();
+
 }
 
 template<class F, class... Args>
 auto epollServer::add_business(F&& f, Args&&... args)
 -> std::future<typename std::result_of<F(Args...)>::type>
 {
-    return pool.enqueue(std::forward<F>(f), std::forward<Args>(args)...);
+    auto result = pool.enqueue(std::forward<F>(f), std::forward<Args>(args)...);
+
 }
 
 int epollServer::epoll_listen()
@@ -48,6 +50,26 @@ int epollServer::epoll_listen()
     return 0;
 }
 
+int epollServer::epoll_init(int sockfd)
+{
+    epoll_event node;
+
+    if ((epoll_fd = epoll_create(1)) < 0) {
+        perror("epoll_create error");
+        exit(1);
+    }
+
+    node.data.fd = sockfd;
+    node.events = EPOLLIN | EPOLLET;    // 边缘触发
+    if (epoll_ctl(epoll_fd, EPOLL_CTL_ADD, sockfd, &node) < 0) {
+        perror("epoll_ctl error");
+        exit(1);
+    }
+    printf("thread poll server init epoll successly epfd: %d\n", epoll_fd);
+
+    return epoll_fd;
+}
+
 void epollServer::accept_conn(int epoll_fd, int sockfd)
 {
     epoll_event node;           // 用于注册事件
@@ -64,7 +86,7 @@ void epollServer::accept_conn(int epoll_fd, int sockfd)
         fcntl(clientfd, F_SETFL, flags | O_NONBLOCK);
 
         printf("accept a new client: %s:%d\n",
-                inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
+            inet_ntoa(client_addr.sin_addr), client_addr.sin_port);
 
         node.data.fd = clientfd;
         node.events = EPOLLIN | EPOLLET;
@@ -106,6 +128,33 @@ void epollServer::respon_conn(int epollf_fd, int sockfd)
     } catch (std::exception& e) {
         std::cout << e.what() << std::endl;
     }
+}
+
+void epollServer::manager_job()
+{
+    std::thread manager_thread([this] ()
+    {
+        int alive, busy, curr;
+        int add, flag;
+
+        printf("manager thread TID [0x%x] is starting\n", std::this_thread::get_id());
+        while (!is_stop) {
+            std::unique_lock<std::mutex> lock(thread_lock);
+            alive = alive_thread_num;
+            busy = busy_thread_num;
+            curr = thread_num;
+            lock.unlock();
+
+            printf("[THREAD POLL INFO] alive: [%d], busy: [%d], curr: [%d], B/A: [%.2f]\n",
+                    alive, busy, alive - busy, (double) busy / alive * 100);
+
+            const int max_add = 5;
+            bool need_expand = (busy * 100 / alive > 70) && (curr < max_thread_num);
+            bool expandable = curr + max_add <= max_thread_num;
+            
+        }
+    });
+    manager_thread.detach();
 }
 
 epollServer::~epollServer()
