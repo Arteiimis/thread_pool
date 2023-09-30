@@ -47,6 +47,7 @@ public:
     void respon_conn(int epoll_fd, int sockfd);
 
     int epoll_listen();
+    int epoll_init(int sockfd);
     int socket_init();
     int get_thread_num();
     int get_max_thread_num();

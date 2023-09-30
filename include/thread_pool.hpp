@@ -23,12 +23,22 @@ public:
         -> std::future<typename std::result_of<F(Args...)>::type>;
     ~threadPool();
 
+    int enpand();
+
 private:
     std::vector<std::thread> workers;
     std::queue<task_type> tasks;
     std::condition_variable cv;
     std::mutex mutex;
     bool stop{ false };
+
+private:
+    int alive_thread_num;           // 线程池中的存活线程数
+    int busy_thread_num;            // 正在忙碌的线程数
+    int max_thread_num;             // 线程池中的最大线程数
+    int min_thread_num;             // 线程池中的最小线程数
+
+    const int expand_num = 2;       // 扩容的线程数
 };
 
 inline threadPool::threadPool(size_t threads)
