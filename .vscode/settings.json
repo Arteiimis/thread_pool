@@ -74,7 +74,9 @@
         "list": "cpp",
         "map": "cpp",
         "set": "cpp",
-        "typeindex": "cpp"
+        "typeindex": "cpp",
+        "shared_mutex": "cpp"
     },
     "C_Cpp.enhancedColorization": "enabled",
+    "commentTranslate.hover.enabled": false,
 }

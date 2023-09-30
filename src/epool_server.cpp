@@ -97,7 +97,7 @@ void epollServer::respon_conn(int epollf_fd, int sockfd)
         }
         if (read_size == 0) {
             printf("client closed\n");
-            if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, clientfd, NULL) < 0) {
+            if (epoll_ctl(epoll_fd, EPOLL_CTL_DEL, clientfd, nullptr) < 0) {
                 perror("epoll_ctl error");
                 exit(1);
             }

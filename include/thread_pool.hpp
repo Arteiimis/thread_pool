@@ -33,11 +33,9 @@ private:
 
 inline threadPool::threadPool(size_t threads)
 {
-    for (size_t i = 0; i < threads; i++)
-    {
+    for (size_t i = 0; i < threads; i++) {
         workers.emplace_back([this] {
-            for (;;)
-            {
+            for (;;) {
                 task_type task;
                 {
                     std::unique_lock<std::mutex> lock(this->mutex);
@@ -74,7 +72,7 @@ auto threadPool::enqueue(F&& func, Args&&... args)
             throw std::runtime_error("enqueue on stopped thread pool");
 
         // 此时task是一个shared_ptr，所以需要用*task()来调用
-        tasks.emplace([task]() { (*task)(); });
+        tasks.emplace([task] () { (*task)(); });
     }
     cv.notify_one();
     return res;

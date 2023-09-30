@@ -22,8 +22,7 @@
 int sock_init()
 {
     int sockfd = socket(AF_INET, SOCK_STREAM, 0);
-    if (sockfd == -1)
-    {
+    if (sockfd == -1) {
         throw std::runtime_error("socket");
         return -1;
     }
@@ -35,15 +34,13 @@ int sock_init()
     saddr.sin_addr.s_addr = inet_addr("172.26.149.240");
 
     int res = bind(sockfd, (struct sockaddr*) &saddr, sizeof(saddr));
-    if (res == -1)
-    {
+    if (res == -1) {
         throw std::runtime_error("bind");
         return -1;
     }
 
     res = listen(sockfd, 5);
-    if (res == -1)
-    {
+    if (res == -1) {
         throw std::runtime_error("listen");
         return -1;
     }
@@ -62,8 +59,7 @@ public:
         : file_name(name)
     {
         int fd = ::open(name.c_str(), O_RDONLY);
-        if (fd == -1)
-        {
+        if (fd == -1) {
             throw std::runtime_error("open");
         }
         this->fd = fd;
@@ -73,8 +69,7 @@ public:
     void open(const std::string& name)
     {
         int fd = ::open(name.c_str(), O_RDONLY);
-        if (fd == -1)
-        {
+        if (fd == -1) {
             throw std::runtime_error("open");
         }
         this->fd = fd;
@@ -106,11 +101,9 @@ std::string get_filename(char* buff)
 void* handle(void* request)
 {
     char buff[1024];
-    while (true)
-    {
+    while (true) {
         int res = recv(*(int*) request, buff, 1024, 0);
-        if (res <= -1)
-        {
+        if (res <= -1) {
             throw std::runtime_error("recv");
             break;
         }
@@ -120,14 +113,12 @@ void* handle(void* request)
         std::cout << "filename: " << filename << std::endl;
 
         std::string path = "/root/thread_pool/src";
-        if (filename == "/")
-        {
+        if (filename == "/") {
             filename = "/index.html";
         }
         path += filename;
 
-        try
-        {
+        try {
             // 打开文件
             file_info file(path);
             std::string header = "HTTP/1.1 200 OK\r\n";
@@ -140,17 +131,14 @@ void* handle(void* request)
 
             // 使用mmap将文件映射到内存中, 然后发送
             char* p = (char*) mmap(nullptr, file.size, PROT_READ, MAP_PRIVATE, file.fd, 0);
-            if (p == MAP_FAILED)
-            {
+            if (p == MAP_FAILED) {
                 throw std::runtime_error("mmap");
             }
 
             // 发送文件内容, 一次性发送
             send(*(int*) request, p, file.size, 0);
             munmap(p, file.size);
-        }
-        catch(const std::exception& e)
-        {
+        } catch (const std::exception& e) {
             std::cerr << e.what() << '\n';
         }
     }
